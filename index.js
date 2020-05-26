@@ -113,6 +113,7 @@ async function fetchVideoFromYoutubeId (youtube, sourceVideo) {
 
 new Promise(async (resolve) => {
   const alreadyPostedVideoIds = await fetchPostedVideoIdsFromTwitter(twitter)
+  console.log("alreadyPostedVideoIds", alreadyPostedVideoIds)
 
   const videosFromChannels = (await Bluebird.map(sources.channels, channel => {
     return fetchVideosFromYoutubeChannel(youtube, channel)
@@ -126,31 +127,32 @@ new Promise(async (resolve) => {
   allVideos.push(...videosFromChannels)
   allVideos.push(...videosFromIds)
 
+  allVideos.forEach(video => video._id = video.id.videoId || video.id)
+
   const missingVideos = allVideos
-      .filter(video => !alreadyPostedVideoIds.includes(video.id.videoId))
+      .filter(video => !alreadyPostedVideoIds.includes(video._id))
       //this is to give time to the video author to provide a meaningful title
       .filter(video => new Date() - new Date(video.snippet.publishedAt) > ONE_HOUR)
       .sort((v1, v2) => new Date(v1.snippet.publishedAt) - new Date(v2.snippet.publishedAt))
 
   await Bluebird.each(missingVideos, async video => {
-    const videoId = video.id.videoId || video.id
     const videoTitle = entities.decode(video.snippet.title)
 
     const status = [ videoTitle ]
     if (video.twitter) {
       status.push(`@${video.twitter}`)
     }
-    status.push(videoIdToYoutubeURL(videoId))
+    status.push(videoIdToYoutubeURL(video._id))
 
     const params = {
       status: status.join(" "),
       trim_user: true
     }
     await twitter.post("statuses/update", params)
-    console.log(`Posted video id ${videoId}: ${videoTitle}`)
+    console.log(`Posted video id ${video._id}: ${videoTitle}`)
 
     // this is just to be nice with twitter
-    await Bluebird.delay(1000)
+    await Bluebird.delay(2000)
 
     resolve()
   })
