@@ -7,6 +7,17 @@ const entities = new Entities()
 
 const sources = require("./sources.json")
 
+function ensureEnvKeys () {
+  const keys = [ "YOUTUBE_API_KEY", "TWITTER_CONSUMER_KEY", "TWITTER_CONSUMER_SECRET", "TWITTER_ACCESS_TOKEN_KEY", "TWITTER_ACCESS_TOKEN_SECRET" ]
+  const missingKeys = keys.filter(key => !(key in process.env))
+  if (missingKeys.length > 0) {
+    console.log(`You ENV misses these keys: ${missingKeys}`)
+    process.exit(-1)
+  }
+}
+
+ensureEnvKeys()
+
 const twitter = new Twitter({
   consumer_key: process.env.TWITTER_CONSUMER_KEY,
   consumer_secret: process.env.TWITTER_CONSUMER_SECRET,
@@ -134,6 +145,7 @@ new Promise(async (resolve) => {
       //this is to give time to the video author to provide a meaningful title
       .filter(video => new Date() - new Date(video.snippet.publishedAt) > ONE_HOUR)
       .sort((v1, v2) => new Date(v1.snippet.publishedAt) - new Date(v2.snippet.publishedAt))
+  console.log("missingVideos", missingVideos.map(video => video._id))
 
   await Bluebird.each(missingVideos, async video => {
     const videoTitle = entities.decode(video.snippet.title)
