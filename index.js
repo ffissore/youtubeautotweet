@@ -122,6 +122,23 @@ async function fetchVideoFromYoutubeId (youtube, sourceVideo) {
   return video
 }
 
+async function tweetVideo (video) {
+  const videoTitle = entities.decode(video.snippet.title)
+
+  const status = [ videoTitle ]
+  if (video.twitter) {
+    status.push(`@${video.twitter}`)
+  }
+  status.push(videoIdToYoutubeURL(video._id))
+
+  const params = {
+    status: status.join(" "),
+    trim_user: true
+  }
+  await twitter.post("statuses/update", params)
+  console.log(`Posted video id ${video._id}: ${videoTitle}`)
+}
+
 new Promise(async (resolve) => {
   const alreadyPostedVideoIds = await fetchPostedVideoIdsFromTwitter(twitter)
   console.log("alreadyPostedVideoIds", alreadyPostedVideoIds)
@@ -148,20 +165,7 @@ new Promise(async (resolve) => {
   console.log("missingVideos", missingVideos.map(video => video._id))
 
   await Bluebird.each(missingVideos, async video => {
-    const videoTitle = entities.decode(video.snippet.title)
-
-    const status = [ videoTitle ]
-    if (video.twitter) {
-      status.push(`@${video.twitter}`)
-    }
-    status.push(videoIdToYoutubeURL(video._id))
-
-    const params = {
-      status: status.join(" "),
-      trim_user: true
-    }
-    await twitter.post("statuses/update", params)
-    console.log(`Posted video id ${video._id}: ${videoTitle}`)
+    await tweetVideo(video)
 
     // this is just to be nice with twitter
     await Bluebird.delay(2000)
